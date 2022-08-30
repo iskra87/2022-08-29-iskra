@@ -1,14 +1,13 @@
 # PHP Docker image for Yii 2.0 Framework runtime
 # ==============================================
 
-ARG PHP_BASE_IMAGE_VERSION
-FROM php:${PHP_BASE_IMAGE_VERSION}
+FROM php:8.0.5-fpm-alpine
 
 ENV PHP_MONGO_VERSION 1.4.2
 ENV LIBRARY_PATH=/lib:/usr/lib
 
-RUN apk update && \
-    apk --update --no-cache --virtual .build-deps add \
+RUN yum update && \
+    yum --update --no-cache --virtual .build-deps add \
         autoconf \
         cmake \
         curl-dev \
@@ -28,7 +27,7 @@ RUN apk update && \
         pkgconf \
         re2c \
         zlib-dev && \
-    apk add \
+    yum add \
         git \
         curl \
         bash \
@@ -74,7 +73,7 @@ RUN git clone --branch ${PHP_MONGO_VERSION} https://github.com/mongodb/mongo-php
     make test && \
     rm -rf /tmp/*
 
-RUN apk del .build-deps
+RUN yum del .build-deps
 
 RUN echo "extension=imagick.so" > /usr/local/etc/php/conf.d/pecl-imagick.ini
 
