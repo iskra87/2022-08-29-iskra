@@ -28,7 +28,7 @@ services:
           - 27017:27017
         volumes:
           - ./data/db:/data/db
-        command: mongod --smallfiles --logpath=/dev/null # --quiet
+        command: mongod --logpath=/dev/null # --quiet
     php:
         image: php:8.0.5-fpm-alpine
         container_name: php-fpm
