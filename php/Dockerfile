@@ -1,52 +1,40 @@
-# PHP Docker image for Yii 2.0 Framework runtime
-# ==============================================
-
-FROM php:8.0.5-fpm-alpine
+FROM i386/php:8.0
 
 ENV PHP_MONGO_VERSION 1.4.2
 ENV LIBRARY_PATH=/lib:/usr/lib
-
-RUN yum update && \
-    yum --update --no-cache --virtual .build-deps add \
+RUN apt-get update 
+RUN apt-get -y install \
         autoconf \
         cmake \
-        curl-dev \
+        curl \
         file \
-        freetype-dev \
         g++ \
         gcc \
-        icu-dev \
-        imagemagick-dev \
+        libicu-dev \
+        imagemagick \
         libc-dev \
-        libjpeg-turbo-dev \
+        libjpeg-dev \
         libpng-dev \
         libtool \
         libxml2-dev \
         make \
-        pcre-dev \
+        libpcre3 libpcre3-dev \
         pkgconf \
         re2c \
-        zlib-dev && \
-    yum add \
+        libzip-dev \
+        libcurl4-openssl-dev \
+        zlib1g 
+RUN apt-get -y install \
         git \
         curl \
         bash \
         bash-completion \
-        icu \
         imagemagick \
-        pcre \
-        freetype \
-        libintl \
-        libjpeg-turbo \
-        libltdl \
-        libpng \
-        libxml2 \
-        wget && \
-    docker-php-ext-configure gd \
-        --with-gd \
-        --with-freetype-dir=/usr/include/ \
-        --with-png-dir=/usr/include/ \
-        --with-jpeg-dir=/usr/include/ && \
+        libintl-perl \
+        libltdl-dev \
+        libonig-dev \
+        wget 
+RUN docker-php-ext-configure gd --enable-gd --with-jpeg && \
     docker-php-ext-configure bcmath && \
     docker-php-ext-install \
         soap \
@@ -58,32 +46,25 @@ RUN yum update && \
         iconv \
         intl \
         mbstring \
-        opcache && \
-    pecl install \
-        imagick
-
-# Install and compile MongoDB php driver
-RUN git clone --branch ${PHP_MONGO_VERSION} https://github.com/mongodb/mongo-php-driver /tmp/php-mongo && \
-    cd /tmp/php-mongo && \
-    git submodule sync && git submodule update --init && \
-    phpize && \
-    ./configure && \
-    make && \
-    make install && \
-    make test && \
-    rm -rf /tmp/*
-
-RUN yum del .build-deps
-
-RUN echo "extension=imagick.so" > /usr/local/etc/php/conf.d/pecl-imagick.ini
-
-
+        opcache 
 # Configure version constraints
-ENV PHP_ENABLE_XDEBUG=0 \
+ENV PHP_ENABLE_XDEBUG=1 \
     PATH=/app:/app/vendor/bin:/root/.composer/vendor/bin:$PATH \
     TERM=linux \
-    VERSION_PRESTISSIMO_PLUGIN=^0.3.7 \
     COMPOSER_ALLOW_SUPERUSER=1
+RUN apt-get -y install libmagick++-dev
+
+RUN pecl install  imagick && \
+    echo "extension=imagick.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"`
+RUN pecl install mongodb && \
+    echo "extension=mongodb.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"`
+RUN apt-get -y install libmcrypt++-dev
+
+RUN pecl install mcrypt && \
+    echo "extension=mcrypt.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"`
+
+RUN apt-get update && apt-get install -y dos2unix
+RUN dos2unix /usr/local/bin/docker-php-entrypoint && apt-get --purge remove -y dos2unix
 
 # Add configuration files
 COPY image-files/ /
@@ -97,12 +78,6 @@ RUN chmod 700 \
 RUN curl -sS https://getcomposer.org/installer | php -- \
         --filename=composer.phar \
         --install-dir=/usr/local/bin && \
-    composer clear-cache
-
-# Install composer plugins
-RUN composer global require --optimize-autoloader \
-        "hirak/prestissimo:${VERSION_PRESTISSIMO_PLUGIN}" && \
-    composer global dumpautoload --optimize && \
     composer clear-cache
 
 # Application environment

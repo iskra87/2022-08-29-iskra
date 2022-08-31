@@ -1,5 +1,45 @@
-version: '3.3'
+version: '3.9'
 services:
+    #docker exec -it mongodb mongo admin
+    mongodb:
+        image: mongo:6.0.1-focal
+        container_name: mongodb
+        env_file: 
+            - ./.env.local
+        environment:
+            - MONGO_INITDB_ROOT_USERNAME=${DB_USER}
+            - MONGO_INITDB_ROOT_PASSWORD=${DB_PASS}
+            - MONGO_INITDB_DATABASE=database
+            - MONGO_DATA_DIR=/data/db
+            - MONGO_LOG_DIR=/dev/null
+        ports:
+            - 27017:27017
+        volumes:
+            - ./data/db:/data/db
+        command: mongod --logpath=/dev/null # --quiet
+        networks:
+            - yii2fpm_default
+    php-fpm:
+        image: i386/php:8.0
+        container_name: php-fpm
+        build: 
+          dockerfile: Dockerfile
+          context: 'php'
+          args:
+            - PHP_BASE_IMAGE_VERSION=8.0
+        env_file: 
+            - ./.env.local
+        environment:
+            - PHP_ENABLE_XDEBUG
+            - TEST_RUNTIME_PATH=/tmp/runtime
+        volumes:
+            - ./tests:/tests
+            - ./app:/app
+            - ~/.composer-docker/cache:/root/.composer/cache
+        links:
+            - mongodb
+        networks:
+            - yii2fpm_default
     nginx:
         image: nginx:latest
         container_name: nginx
@@ -11,38 +51,14 @@ services:
             - ./app:/app
             - ./nginx/var/log/nginx:/var/log/nginx/
             - ./nginx/usr/share/nginx/html:/usr/share/nginx/html/
+        env_file:
+            - ./.env.local
         links:
-            - php
-    #docker exec -it mongodb mongo admin
-    mongodb:
-        image: mongo:6.0.1-focal
-        container_name: mongodb
-        environment:
-          - MONGO_INITDB_ROOT_USERNAME=${DB_USER}
-          - MONGO_INITDB_ROOT_PASSWORD=${DB_PASS}
-          - MONGO_INITDB_DATABASE=database
-          - MONGO_DATA_DIR=/data/db
-          - MONGO_LOG_DIR=/dev/null
-        env_file: .env.local
-        ports:
-          - 27017:27017
-        volumes:
-          - ./data/db:/data/db
-        command: mongod --logpath=/dev/null # --quiet
-    php:
-        image: php:8.0.5-fpm-alpine
-        container_name: php-fpm
-        build: 
-          dockerfile: Dockerfile
-          context: 'php'
-          args:
-            - PHP_BASE_IMAGE_VERSION=8.0.5
-        environment:
-            - PHP_ENABLE_XDEBUG
-            - TEST_RUNTIME_PATH=/tmp/runtime
-        volumes:
-            - ./tests:/tests
-            - ./app:/app
-            - ~/.composer-docker/cache:/root/.composer/cache
-        links:
-            - mongodb
+            - php-fpm
+        networks:
+            - yii2fpm_default
+            
+networks:
+    yii2fpm_default:
+        driver: bridge
+        name: yii2fpm_default
